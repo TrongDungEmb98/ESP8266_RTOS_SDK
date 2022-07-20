@@ -38,8 +38,8 @@
 
 static EventGroupHandle_t s_connect_event_group;
 static ip4_addr_t s_ip_addr;
-static char s_connection_name[32] = CONFIG_EXAMPLE_WIFI_SSID;
-static char s_connection_passwd[32] = CONFIG_EXAMPLE_WIFI_PASSWORD;
+static char s_connection_name[32] = "RD HUNONIC 1";
+static char s_connection_passwd[32] = "66668888";
 
 #ifdef CONFIG_EXAMPLE_CONNECT_IPV6
 static ip6_addr_t s_ipv6_addr;
