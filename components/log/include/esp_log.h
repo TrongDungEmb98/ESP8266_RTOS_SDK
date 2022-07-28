@@ -308,14 +308,13 @@ void esp_early_log_write(esp_log_level_t level, const char* tag, const char* for
  *
  * @see ``printf``
  */
-#define ESP_LOG_LEVEL(level, tag, format, ...) \
-	do {                     } while(0)
-        // if (level==ESP_LOG_ERROR )          { esp_log_write(ESP_LOG_ERROR,      tag, format, ##__VA_ARGS__); } 
-        // else if (level==ESP_LOG_WARN )      { esp_log_write(ESP_LOG_WARN,       tag, format, ##__VA_ARGS__); } 
-        // else if (level==ESP_LOG_DEBUG )     { esp_log_write(ESP_LOG_DEBUG,      tag, format, ##__VA_ARGS__); } 
-        // else if (level==ESP_LOG_VERBOSE )   { esp_log_write(ESP_LOG_VERBOSE,    tag, format, ##__VA_ARGS__); } 
-        // else                                { esp_log_write(ESP_LOG_INFO,       tag, format, ##__VA_ARGS__); } 
-    // } while(0)
+#define ESP_LOG_LEVEL(level, tag, format, ...) do {            \
+        if (level==ESP_LOG_ERROR )          { esp_log_write(ESP_LOG_ERROR,      tag, format, ##__VA_ARGS__); }  \
+        else if (level==ESP_LOG_WARN )      { esp_log_write(ESP_LOG_WARN,       tag, format, ##__VA_ARGS__); } \
+        else if (level==ESP_LOG_DEBUG )     { esp_log_write(ESP_LOG_DEBUG,      tag, format, ##__VA_ARGS__); } \
+        else if (level==ESP_LOG_VERBOSE )   { esp_log_write(ESP_LOG_VERBOSE,    tag, format, ##__VA_ARGS__); } \
+        else                                { esp_log_write(ESP_LOG_INFO,       tag, format, ##__VA_ARGS__); } \
+    } while(0)
 
 /** runtime macro to output logs at a specified level. Also check the level with ``LOG_LOCAL_LEVEL``.
  *
