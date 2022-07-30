@@ -37,6 +37,9 @@
 
 #include "esp_newlib.h"
 
+#define STOP_DOOR hc595_set_bit(4);\
+                    hc595_clear_bit(5);\
+                    hc595_clear_bit(6);\
 extern esp_err_t esp_pthread_init(void);
 extern void chip_boot(void);
 extern int base_gpio_init(void);
@@ -54,8 +57,16 @@ static inline int should_load(uint32_t load_addr)
     return 1;
 }
 
+
+
 static void user_init_entry(void *param)
 {
+    extern void init_74hc595(void);
+    extern void hc595_clear_bit(uint8_t bit);
+    extern void hc595_set_bit(uint8_t bit);
+
+    /* stop door here is no effect to 74HC595 */
+
     void (**func)(void);
 
     extern void (*__init_array_start)(void);
@@ -68,8 +79,13 @@ static void user_init_entry(void *param)
     for (func = &__init_array_start; func < &__init_array_end; func++)
         func[0]();
 
+    /* stop door here is no effect to 74HC595 */
+
     esp_phy_init_clk();
     assert(base_gpio_init() == 0);
+    
+    init_74hc595();
+    STOP_DOOR
 
     if (esp_reset_reason_early() != ESP_RST_FAST_SW) {
         assert(esp_mac_init() == ESP_OK);
@@ -85,6 +101,8 @@ static void user_init_entry(void *param)
 
     assert(esp_pthread_init() == 0);
 
+    STOP_DOOR
+
 #ifdef CONFIG_BOOTLOADER_FAST_BOOT
     REG_CLR_BIT(DPORT_CTL_REG, DPORT_CTL_DOUBLE_CLK);
 #endif
@@ -93,6 +111,9 @@ static void user_init_entry(void *param)
     esp_set_cpu_freq(ESP_CPU_FREQ_160M);
 #endif
 
+    STOP_DOOR
+    hc595_clear_bit(4);
+    
     app_main();
 
     vTaskDelete(NULL);
