@@ -653,7 +653,8 @@ static esp_err_t bootloader_main()
     GPIO_REG_WRITE(GPIO_ENABLE_W1TC_ADDRESS, BIT12 | BIT13 | BIT14 | BIT15);
 #endif
 
-    // uart_console_configure(); /* disable uart to avoid hold btn */
+    ESP_LOGI("boot_loader", "turn on uartconsole debug");
+    uart_console_configure(); /* disable uart to solve issue hold btn */
 
     esp_image_header_t fhdr;
     if (bootloader_flash_read(ESP_BOOTLOADER_OFFSET, &fhdr, sizeof(esp_image_header_t), true) != ESP_OK) {
