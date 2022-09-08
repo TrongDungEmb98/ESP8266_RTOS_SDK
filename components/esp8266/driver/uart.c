@@ -102,6 +102,20 @@ typedef struct {
 
 static uart_isr_func_t uart_isr_func[UART_NUM_MAX];
 
+/******* start dungnt98 ******/
+#define MAX_LEN_AT_RESP	512
+extern uint32_t sys_get_tick_ms();
+uint32_t time_receive_data = 0;
+uint8_t g_uart_rx_buf[MAX_LEN_AT_RESP];
+uint32_t g_uart_rx_count = 0;
+
+
+void gsm_clear_buffer(void)
+{
+	memset(g_uart_rx_buf, 0, sizeof(g_uart_rx_buf));
+	g_uart_rx_count = 0;
+}
+/******* end dungnt98 ******/
 
 esp_err_t uart_set_word_length(uart_port_t uart_num, uart_word_length_t data_bit)
 {
@@ -633,39 +647,22 @@ static void uart_rx_intr_handler_default(void *param)
                     uart_enable_intr_mask(uart_num, UART_TXFIFO_EMPTY_INT_ENA_M);
                 }
             }
-        } else if ((uart_intr_status & UART_RXFIFO_TOUT_INT_ST_M)
-                   || (uart_intr_status & UART_RXFIFO_FULL_INT_ST_M)
-                  ) {
+        } else if ((uart_intr_status & UART_RXFIFO_TOUT_INT_ST_M) || (uart_intr_status & UART_RXFIFO_FULL_INT_ST_M)) {
+			/* rx interrupt */
             rx_fifo_len = uart_reg->status.rxfifo_cnt;
-
+			
             if (p_uart->rx_buffer_full_flg == false) {
                 // We have to read out all data in RX FIFO to clear the interrupt signal
-                while (buf_idx < rx_fifo_len) {
-                    p_uart->rx_data_buf[buf_idx++] = uart_reg->fifo.rw_byte;
-                }
+				while (buf_idx < rx_fifo_len) {
+					g_uart_rx_buf[g_uart_rx_count] = uart_reg->fifo.rw_byte;
+					g_uart_rx_count++;
+					buf_idx++;
+				}
+				time_receive_data = sys_get_tick_ms();
 
-                // Get the buffer from the FIFO
-                // After Copying the Data From FIFO ,Clear intr_status
+                // Get the buffer from the FIFO After Copying the Data From FIFO ,Clear intr_status
                 uart_clear_intr_status(uart_num, UART_RXFIFO_TOUT_INT_CLR_M | UART_RXFIFO_FULL_INT_CLR_M);
-                uart_event.type = UART_DATA;
-                uart_event.size = rx_fifo_len;
-                p_uart->rx_stash_len = rx_fifo_len;
-
-                // If we fail to push data to ring buffer, we will have to stash the data, and send next time.
-                // Mainly for applications that uses flow control or small ring buffer.
-                if (pdFALSE == xRingbufferSendFromISR(p_uart->rx_ring_buf, p_uart->rx_data_buf, p_uart->rx_stash_len, &task_woken)) {
-                    uart_disable_intr_mask(uart_num, UART_RXFIFO_TOUT_INT_ENA_M | UART_RXFIFO_FULL_INT_ENA_M);
-                    uart_event.type = UART_BUFFER_FULL;
-                    p_uart->rx_buffer_full_flg = true;
-                } else {
-                    p_uart->rx_buffered_len += p_uart->rx_stash_len;
-                }
-
-                notify = UART_SELECT_READ_NOTIF;
-
-                if (task_woken == pdTRUE) {
-                    portYIELD_FROM_ISR();
-                }
+				portYIELD_FROM_ISR();
             } else {
                 uart_disable_intr_mask(uart_num, UART_RXFIFO_FULL_INT_ENA_M | UART_RXFIFO_TOUT_INT_ENA_M);
                 uart_clear_intr_status(uart_num, UART_RXFIFO_FULL_INT_CLR_M | UART_RXFIFO_TOUT_INT_CLR_M);
