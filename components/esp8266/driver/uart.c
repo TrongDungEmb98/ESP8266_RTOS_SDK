@@ -654,8 +654,10 @@ static void uart_rx_intr_handler_default(void *param)
             if (p_uart->rx_buffer_full_flg == false) {
                 // We have to read out all data in RX FIFO to clear the interrupt signal
 				while (buf_idx < rx_fifo_len) {
-					g_uart_rx_buf[g_uart_rx_count] = uart_reg->fifo.rw_byte;
-					g_uart_rx_count++;
+					if (g_uart_rx_count < MAX_LEN_AT_RESP) {
+						g_uart_rx_buf[g_uart_rx_count] = uart_reg->fifo.rw_byte;
+						g_uart_rx_count++;
+					}
 					buf_idx++;
 				}
 				time_receive_data = sys_get_tick_ms();
