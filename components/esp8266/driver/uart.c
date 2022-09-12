@@ -648,23 +648,38 @@ static void uart_rx_intr_handler_default(void *param)
                 }
             }
         } else if ((uart_intr_status & UART_RXFIFO_TOUT_INT_ST_M) || (uart_intr_status & UART_RXFIFO_FULL_INT_ST_M)) {
-			/* rx interrupt */
             rx_fifo_len = uart_reg->status.rxfifo_cnt;
-			
+
             if (p_uart->rx_buffer_full_flg == false) {
                 // We have to read out all data in RX FIFO to clear the interrupt signal
-				while (buf_idx < rx_fifo_len) {
-					if (g_uart_rx_count < MAX_LEN_AT_RESP) {
-						g_uart_rx_buf[g_uart_rx_count] = uart_reg->fifo.rw_byte;
-						g_uart_rx_count++;
-					}
-					buf_idx++;
-				}
+                while (buf_idx < rx_fifo_len) {
+                    p_uart->rx_data_buf[buf_idx++] = uart_reg->fifo.rw_byte;
+                }
+
 				time_receive_data = sys_get_tick_ms();
 
-                // Get the buffer from the FIFO After Copying the Data From FIFO ,Clear intr_status
+                // Get the buffer from the FIFO
+                // After Copying the Data From FIFO ,Clear intr_status
                 uart_clear_intr_status(uart_num, UART_RXFIFO_TOUT_INT_CLR_M | UART_RXFIFO_FULL_INT_CLR_M);
-				portYIELD_FROM_ISR();
+                // uart_event.type = UART_DATA;
+                uart_event.size = rx_fifo_len;
+                p_uart->rx_stash_len = rx_fifo_len;
+
+                // If we fail to push data to ring buffer, we will have to stash the data, and send next time.
+                // Mainly for applications that uses flow control or small ring buffer.
+                if (pdFALSE == xRingbufferSendFromISR(p_uart->rx_ring_buf, p_uart->rx_data_buf, p_uart->rx_stash_len, &task_woken)) {
+                    uart_disable_intr_mask(uart_num, UART_RXFIFO_TOUT_INT_ENA_M | UART_RXFIFO_FULL_INT_ENA_M);
+                    uart_event.type = UART_BUFFER_FULL;
+                    p_uart->rx_buffer_full_flg = true;
+                } else {
+                    p_uart->rx_buffered_len += p_uart->rx_stash_len;
+                }
+
+                notify = UART_SELECT_READ_NOTIF;
+
+                if (task_woken == pdTRUE) {
+                    portYIELD_FROM_ISR();
+                }
             } else {
                 uart_disable_intr_mask(uart_num, UART_RXFIFO_FULL_INT_ENA_M | UART_RXFIFO_TOUT_INT_ENA_M);
                 uart_clear_intr_status(uart_num, UART_RXFIFO_FULL_INT_CLR_M | UART_RXFIFO_TOUT_INT_CLR_M);
