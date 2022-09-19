@@ -40,6 +40,7 @@
 #define STOP_DOOR hc595_set_bit(4);\
                     hc595_clear_bit(5);\
                     hc595_clear_bit(6);\
+                    
 extern esp_err_t esp_pthread_init(void);
 extern void chip_boot(void);
 extern int base_gpio_init(void);
