@@ -26,6 +26,7 @@
 
 static const char *TAG = "httpd";
 
+static void httpd_close_all_sessions(struct httpd_data *hd);
 static esp_err_t httpd_accept_conn(struct httpd_data *hd, int listen_fd)
 {
     /* If no space is available for new session, close the least recently used one */
@@ -47,6 +48,7 @@ static esp_err_t httpd_accept_conn(struct httpd_data *hd, int listen_fd)
     int new_fd = accept(listen_fd, (struct sockaddr *)&addr_from, &addr_from_len);
     if (new_fd < 0) {
         ESP_LOGW(TAG, LOG_FMT("error in accept (%d)"), errno);
+        httpd_close_all_sessions(hd);
         return ESP_FAIL;
     }
     ESP_LOGD(TAG, LOG_FMT("newfd = %d"), new_fd);
