@@ -111,7 +111,7 @@ typedef struct {
     uint32_t intr_enable_mask;          /*!< UART interrupt enable mask, choose from UART_XXXX_INT_ENA_M under UART_INT_ENA_REG(i), connect with bit-or operator*/
     uint8_t  rx_timeout_thresh;         /*!< UART timeout interrupt threshold (unit: time of sending one byte)*/
     uint8_t  txfifo_empty_intr_thresh;  /*!< UART TX empty interrupt threshold.*/
-    uint8_t  rxfifo_full_thresh;        /*!< UART RX full interrupt threshold.*/
+    uint32_t  rxfifo_full_thresh;        /*!< UART RX full interrupt threshold.*/
 } uart_intr_config_t;
 
 /**

@@ -46,7 +46,7 @@ static const char *UART_TAG = "uart";
     }
 
 #define UART_EMPTY_THRESH_DEFAULT  (10)
-#define UART_FULL_THRESH_DEFAULT  (12)
+#define UART_FULL_THRESH_DEFAULT  (508)
 #define UART_TOUT_THRESH_DEFAULT   (10)
 
 typedef struct {
@@ -66,7 +66,7 @@ typedef struct {
     // rx parameters
     int rx_buffered_len;                  /*!< UART cached data length */
     SemaphoreHandle_t rx_mux;           /*!< UART RX data mutex*/
-    int rx_buf_size;                    /*!< RX ring buffer size */
+    uint32_t rx_buf_size;                    /*!< RX ring buffer size */
     RingbufHandle_t rx_ring_buf;        /*!< RX ring buffer handler*/
     bool rx_buffer_full_flg;            /*!< RX ring buffer full flag. */
     int rx_cur_remain;                  /*!< Data number that waiting to be read out in ring buffer item*/
