@@ -644,10 +644,15 @@ static void uart_rx_intr_handler_default(void *param)
                     p_uart->rx_data_buf[buf_idx++] = uart_reg->fifo.rw_byte;
                 }
 
+                if (uart_intr_status & UART_RXFIFO_FULL_INT_ST_M) {
+                    uart_event.type = UART_DATA_AVAILABEL;
+                } else {
+                    uart_event.type = UART_DATA;
+                }
+
                 // Get the buffer from the FIFO
                 // After Copying the Data From FIFO ,Clear intr_status
                 uart_clear_intr_status(uart_num, UART_RXFIFO_TOUT_INT_CLR_M | UART_RXFIFO_FULL_INT_CLR_M);
-                uart_event.type = UART_DATA;
                 uart_event.size = rx_fifo_len;
                 p_uart->rx_stash_len = rx_fifo_len;
 
