@@ -90,7 +90,7 @@ static void user_init_entry(void *param)
 #endif
 
 #ifdef CONFIG_ESP8266_DEFAULT_CPU_FREQ_160
-    esp_set_cpu_freq(ESP_CPU_FREQ_160M);
+    esp_set_cpu_freq(ESP_CPU_FREQ_80M);
 #endif
 
     app_main();
