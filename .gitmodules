@@ -8,7 +8,7 @@
 
 [submodule "components/lwip/lwip"]
 	path = components/lwip/lwip
-	url = ../../espressif/esp-lwip.git
+	url = ../../ictu-dungnt98/esp-lwip.git
 
 [submodule "components/mqtt/esp-mqtt"]
 	path = components/mqtt/esp-mqtt

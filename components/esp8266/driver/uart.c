@@ -46,7 +46,7 @@ static const char *UART_TAG = "uart";
     }
 
 #define UART_EMPTY_THRESH_DEFAULT  (10)
-#define UART_FULL_THRESH_DEFAULT  (508)
+#define UART_FULL_THRESH_DEFAULT  (12)
 #define UART_TOUT_THRESH_DEFAULT   (10)
 
 typedef struct {
