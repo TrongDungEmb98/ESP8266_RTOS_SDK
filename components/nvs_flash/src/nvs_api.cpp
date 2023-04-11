@@ -408,6 +408,7 @@ extern "C" esp_err_t nvs_set_str(nvs_handle_t c_handle, const char* key, const c
     return handle->set_string(key, value);
 }
 
+/* able to write struct to flash using this */
 extern "C" esp_err_t nvs_set_blob(nvs_handle_t c_handle, const char* key, const void* value, size_t length)
 {
     Lock lock;
