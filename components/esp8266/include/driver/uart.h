@@ -123,6 +123,7 @@ typedef enum {
     UART_FIFO_OVF,          /*!< UART FIFO overflow event*/
     UART_FRAME_ERR,         /*!< UART RX frame error event*/
     UART_PARITY_ERR,        /*!< UART RX parity event*/
+    UART_DATA_AVAILABEL,    /* hunonic event definition */
     UART_EVENT_MAX,         /*!< UART event max index*/
 } uart_event_type_t;
 

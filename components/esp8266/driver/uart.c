@@ -46,7 +46,7 @@ static const char *UART_TAG = "uart";
     }
 
 #define UART_EMPTY_THRESH_DEFAULT  (10)
-#define UART_FULL_THRESH_DEFAULT  (120)
+#define UART_FULL_THRESH_DEFAULT  (508)
 #define UART_TOUT_THRESH_DEFAULT   (10)
 
 typedef struct {
@@ -257,7 +257,18 @@ esp_err_t uart_wait_tx_done(uart_port_t uart_num, TickType_t ticks_to_wait)
     uint32_t baudrate;
     uint32_t byte_delay_us = 0;
     BaseType_t res;
+    portTickType ticks_cur;
+    portTickType ticks_start = xTaskGetTickCount();
     portTickType ticks_end = xTaskGetTickCount() + ticks_to_wait;
+    /**
+     *  Considering the overflow of the ticks_end and the ticks_cur (xTaskGetTickCount()),
+     *  the possible tick timestamp is as follows:
+    *   (one start tick timestamp, two end tick timestamps, four current tick timestamps)
+     *
+     * ticks: 0                                                               0xFFFFFFFF
+     *        |_______._______._______._______._______._______._______._______|
+     *               cur1    end1    cur2   start    cur3    end2    cur4
+    */
 
     // Take tx_mux
     res = xSemaphoreTake(p_uart_obj[uart_num]->tx_mux, (portTickType)ticks_to_wait);
@@ -273,10 +284,22 @@ esp_err_t uart_wait_tx_done(uart_port_t uart_num, TickType_t ticks_to_wait)
     uart_get_baudrate(uart_num, &baudrate);
     byte_delay_us = (uint32_t)(10000000 / baudrate); // (1/baudrate)*10*1000_000 us
 
-    ticks_to_wait = ticks_end - xTaskGetTickCount();
+    ticks_cur = xTaskGetTickCount();
+    if (ticks_start <= ticks_cur) {
+        ticks_to_wait = ticks_to_wait - (ticks_cur - ticks_start);
+    } else {
+        ticks_to_wait = ticks_to_wait - (portMAX_DELAY - ticks_start + ticks_cur);
+    }
     // wait for tx done sem.
     if (pdTRUE == xSemaphoreTake(p_uart_obj[uart_num]->tx_done_sem, ticks_to_wait)) {
         while (1) {
+            ticks_cur = xTaskGetTickCount();
+            bool end1_timeout = (ticks_end < ticks_start && ticks_cur < ticks_start && ticks_cur > ticks_end);
+            bool end2_timeout = (ticks_start < ticks_end && (ticks_cur < ticks_start || ticks_end < ticks_cur));
+            if (end1_timeout || end2_timeout) {
+                xSemaphoreGive(p_uart_obj[uart_num]->tx_mux);
+                return ESP_ERR_TIMEOUT;
+            }
             if (UART[uart_num]->status.txfifo_cnt == 0) {
                 ets_delay_us(byte_delay_us); // Delay one byte time to guarantee transmission completion 
                 break;
@@ -610,9 +633,7 @@ static void uart_rx_intr_handler_default(void *param)
                     uart_enable_intr_mask(uart_num, UART_TXFIFO_EMPTY_INT_ENA_M);
                 }
             }
-        } else if ((uart_intr_status & UART_RXFIFO_TOUT_INT_ST_M)
-                   || (uart_intr_status & UART_RXFIFO_FULL_INT_ST_M)
-                  ) {
+        } else if ((uart_intr_status & UART_RXFIFO_TOUT_INT_ST_M)|| (uart_intr_status & UART_RXFIFO_FULL_INT_ST_M)) {
             rx_fifo_len = uart_reg->status.rxfifo_cnt;
 
             if (p_uart->rx_buffer_full_flg == false) {
@@ -621,10 +642,16 @@ static void uart_rx_intr_handler_default(void *param)
                     p_uart->rx_data_buf[buf_idx++] = uart_reg->fifo.rw_byte;
                 }
 
+                if (uart_intr_status & UART_RXFIFO_FULL_INT_ST_M) {
+                    uart_event.type = UART_DATA_AVAILABEL;
+                } else {
+                    uart_event.type = UART_DATA;
+                }
+
                 // Get the buffer from the FIFO
                 // After Copying the Data From FIFO ,Clear intr_status
                 uart_clear_intr_status(uart_num, UART_RXFIFO_TOUT_INT_CLR_M | UART_RXFIFO_FULL_INT_CLR_M);
-                uart_event.type = UART_DATA;
+
                 uart_event.size = rx_fifo_len;
                 p_uart->rx_stash_len = rx_fifo_len;
 
