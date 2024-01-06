@@ -3,7 +3,10 @@
 #
 
 COMPONENT_ADD_INCLUDEDIRS := include
+COMPONENT_ADD_INCLUDEDIRS += private_include
 
 COMPONENT_SRCDIRS := src
 
-CPPFLAGS += -DNVS_CRC_HEADER_FILE=\"rom/crc.h\"
+ifndef CONFIG_NVS_ENCRYPTION
+COMPONENT_OBJEXCLUDE := src/nvs_encr.o
+endif

@@ -1,55 +1,42 @@
-// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 #ifndef nvs_types_h
 #define nvs_types_h
 
 #include <cstdint>
-#include <type_traits>
 #include <cstring>
 #include <cassert>
 #include <algorithm>
 #include "nvs.h"
+#include "nvs_handle.hpp"
 #include "compressed_enum_table.hpp"
+#include "string.h"
 
+using namespace std;
 
 namespace nvs
 {
 
-enum class ItemType : uint8_t {
-    U8   = 0x01,
-    I8   = 0x11,
-    U16  = 0x02,
-    I16  = 0x12,
-    U32  = 0x04,
-    I32  = 0x14,
-    U64  = 0x08,
-    I64  = 0x18,
-    SZ   = 0x21,
-    BLOB = 0x41,
-    ANY  = 0xff
+/**
+ * Used to recognize transient states of a blob. Once a blob is modified, new chunks with the new data are written
+ * with a new version. The version is saved in the highest bit of Item::chunkIndex as well as in
+ * Item::blobIndex::chunkStart.
+ * If a chunk is modified and hence re-written, the version swaps: 0x0 -> 0x80 or 0x80 -> 0x0.
+ */
+enum class VerOffset: uint8_t {
+    VER_0_OFFSET = 0x0,
+    VER_1_OFFSET = 0x80,
+    VER_ANY = 0xff,
 };
 
-template<typename T, typename std::enable_if<std::is_integral<T>::value, void*>::type = nullptr>
-constexpr ItemType itemTypeOf()
+inline bool isVariableLengthType(ItemType type)
 {
-    return static_cast<ItemType>(((std::is_signed<T>::value)?0x10:0x00) | sizeof(T));
-}
-
-template<typename T>
-constexpr ItemType itemTypeOf(const T&)
-{
-    return itemTypeOf<T>();
+    return (type == ItemType::BLOB ||
+            type == ItemType::SZ ||
+            type == ItemType::BLOB_DATA);
 }
 
 class Item
@@ -60,15 +47,21 @@ public:
             uint8_t  nsIndex;
             ItemType datatype;
             uint8_t  span;
-            uint8_t  reserved;
+            uint8_t  chunkIndex;
             uint32_t crc32;
-            char     key[16];
+            char     key[NVS_KEY_NAME_MAX_SIZE];
             union {
                 struct {
                     uint16_t dataSize;
-                    uint16_t reserved2;
+                    uint16_t reserved;
                     uint32_t dataCrc32;
                 } varLength;
+                struct {
+                    uint32_t   dataSize;
+                    uint8_t    chunkCount; // Number of children data blobs.
+                    VerOffset  chunkStart; // Offset from which the chunkIndex for children blobs starts
+                    uint16_t   reserved;
+                } blobIndex;
                 uint8_t data[8];
             };
         };
@@ -77,8 +70,12 @@ public:
 
     static const size_t MAX_KEY_LENGTH = sizeof(key) - 1;
 
-    Item(uint8_t nsIndex, ItemType datatype, uint8_t span, const char* key_)
-        : nsIndex(nsIndex), datatype(datatype), span(span), reserved(0xff)
+    // 0xff cannot be used as a valid chunkIndex for blob datatype.
+    static const uint8_t CHUNK_ANY = 0xff;
+
+
+    Item(uint8_t nsIndex, ItemType datatype, uint8_t span, const char* key_, uint8_t chunkIdx = CHUNK_ANY)
+        : nsIndex(nsIndex), datatype(datatype), span(span), chunkIndex(chunkIdx)
     {
         std::fill_n(reinterpret_cast<uint32_t*>(key),  sizeof(key)  / 4, 0xffffffff);
         std::fill_n(reinterpret_cast<uint32_t*>(data), sizeof(data) / 4, 0xffffffff);
@@ -100,19 +97,19 @@ public:
 
     void getKey(char* dst, size_t dstSize)
     {
-        strncpy(dst, key, (dstSize<MAX_KEY_LENGTH)?dstSize:MAX_KEY_LENGTH);
+        strncpy(dst, key, min(dstSize, sizeof(key)));
+        dst[dstSize-1] = 0;
     }
 
     template<typename T>
-    void getValue(T& dst)
+    esp_err_t getValue(T& dst)
     {
-        assert(itemTypeOf(dst) == datatype);
+        NVS_ASSERT_OR_RETURN(itemTypeOf(dst) == datatype, ESP_FAIL);
         dst = *reinterpret_cast<T*>(data);
+        return ESP_OK;
     }
 };
 
 } // namespace nvs
-
-
 
 #endif /* nvs_types_h */
