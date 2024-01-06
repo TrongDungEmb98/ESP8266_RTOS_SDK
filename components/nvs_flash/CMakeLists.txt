@@ -19,7 +19,8 @@ set(include_dirs "include")
 
 idf_component_register(SRCS "${srcs}"
                     REQUIRES "${public_req}"
-                    INCLUDE_DIRS "${include_dirs}")
+                    INCLUDE_DIRS "${include_dirs}"
+                    PRIV_INCLUDE_DIRS "private_include")
 
 # If we use the linux target, we need to redirect the crc functions to the linux
 if(${target} STREQUAL "linux")
